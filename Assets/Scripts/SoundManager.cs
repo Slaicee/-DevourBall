@@ -4,7 +4,7 @@ public class SoundManager : MonoBehaviour
 {
     public static SoundManager Instance;
 
-    [Header("吞噬音效（按Tag对应拖入）")]
+    [Header("Eat sounds (by tag)")]
     public AudioClip eatHuman;
     public AudioClip eatAnimal;
     public AudioClip eatPlant;
@@ -19,7 +19,6 @@ public class SoundManager : MonoBehaviour
     {
         Instance = this;
 
-        // 创建一个独立AudioSource用于播放短音效
         audioSource = gameObject.AddComponent<AudioSource>();
         audioSource.playOnAwake = false;
         audioSource.spatialBlend = 0f;
@@ -28,22 +27,27 @@ public class SoundManager : MonoBehaviour
 
     public void PlayEatSound(string tag)
     {
-        AudioClip clip = GetClipByTag(tag);
+        PlayEatSound(EatableTypeExtensions.TagToType(tag));
+    }
+
+    public void PlayEatSound(Eatable.EatableType type)
+    {
+        AudioClip clip = GetClipByType(type);
         if (clip == null) return;
         audioSource.PlayOneShot(clip);
     }
 
-    AudioClip GetClipByTag(string tag)
+    private AudioClip GetClipByType(Eatable.EatableType type)
     {
-        switch (tag)
+        return type switch
         {
-            case "Human": return eatHuman;
-            case "Animal": return eatAnimal;
-            case "Plant": return eatPlant;
-            case "Vehicle": return eatVehicle;
-            case "Building": return eatBuilding;
-            case "Street": return eatStreet;
-            default: return eatOther;
-        }
+            Eatable.EatableType.Human => eatHuman,
+            Eatable.EatableType.Animal => eatAnimal,
+            Eatable.EatableType.Plant => eatPlant,
+            Eatable.EatableType.Vehicle => eatVehicle,
+            Eatable.EatableType.Building => eatBuilding,
+            Eatable.EatableType.Street => eatStreet,
+            _ => eatOther,
+        };
     }
 }

@@ -7,17 +7,28 @@ public class CountdownUI : MonoBehaviour
     public float totalTime = 600f; // 10 min
 
     private float currentTime;
+    private float lastKnownPlayerSize = 1f;
 
     void Start()
     {
         currentTime = totalTime;
     }
 
+    void OnEnable()
+    {
+        EventBus.OnPlayerSizeChanged += HandlePlayerSizeChanged;
+    }
+
+    void OnDisable()
+    {
+        EventBus.OnPlayerSizeChanged -= HandlePlayerSizeChanged;
+    }
+
     void Update()
     {
         if (timerText == null)
         {
-            Debug.LogError("倒计时Text没拖！");
+            Debug.LogError("Timer Text not assigned!");
             return;
         }
 
@@ -26,20 +37,10 @@ public class CountdownUI : MonoBehaviour
         if (currentTime <= 0)
         {
             currentTime = 0;
-
-            // 获取吞噬球尺寸
-            float playerSize = 1f;
-            var player = FindObjectOfType<PlayerEater>();
-            if (player != null) playerSize = player.size;
-
-            // 调用GameOverUI
-            var ui = FindObjectOfType<GameOverUI>();
-            if (ui != null)
-            {
-                ui.ShowGameOver(playerSize);
-            }
-
-            enabled = false; // 停止倒计时Update()
+            UpdateUI();
+            EventBus.PublishCountdownEnded();
+            enabled = false;
+            return;
         }
 
         UpdateUI();
@@ -49,7 +50,24 @@ public class CountdownUI : MonoBehaviour
     {
         int minutes = Mathf.FloorToInt(currentTime / 60);
         int seconds = Mathf.FloorToInt(currentTime % 60);
+        timerText.text = $"Time: {minutes:00}:{seconds:00}";
+    }
 
-        timerText.text = $"倒计时：{minutes:00}:{seconds:00}";
+    private void HandlePlayerSizeChanged(float size, float radius)
+    {
+        lastKnownPlayerSize = size;
+    }
+
+    public float GetPlayerSize()
+    {
+        return lastKnownPlayerSize;
+    }
+
+    public float GetRemainingTime() => currentTime;
+
+    public void SetRemainingTime(float time)
+    {
+        currentTime = time;
+        UpdateUI();
     }
 }

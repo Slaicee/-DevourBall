@@ -4,14 +4,14 @@ using Cinemachine;
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerController : MonoBehaviour
 {
-    [Header("ÒÆ¶¯²ÎÊý")]
+    [Header("ç§»åŠ¨")]
     public float moveForce = 800f;
-    public float maxSpeed = 20f;       // ×î´óËÙ¶È
+    public float maxSpeed = 20f;       // ï¿½ï¿½ï¿½ï¿½Ù¶ï¿½
 
-    [Header("¹ö¶¯²ÎÊý")]
-    public float rollSpeed = 12f;     // ÇòÌå¹ö¶¯ËÙ¶È
+    [Header("æ—‹è½¬")]
+    public float rollSpeed = 12f;     // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ù¶ï¿½
 
-    [Header("Ïà»ú¹ØÁª")]
+    [Header("è§†è§’")]
     public CinemachineFreeLook freelookCam;
     private Rigidbody rb;
 
@@ -22,13 +22,18 @@ public class PlayerController : MonoBehaviour
         rb.angularDrag = 0.02f;
         rb.freezeRotation = false;
 
-        Cursor.lockState = CursorLockMode.Locked;   //Ëø¶¨ÔÚÆÁÄ»ÖÐÐÄ
-        Cursor.visible = false;                     //Òþ²ØÊó±ê
+        if (GameStateManager.Instance == null)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
     }
 
     void FixedUpdate()
     {
-        // 1.¶ÁÈ¡Ô­Ê¼ÊäÈë
+        if (GameStateManager.Instance != null && GameStateManager.Instance.CurrentState != GameState.Playing)
+            return;
+
         float vertical = Input.GetAxisRaw("Vertical");
         float horizontal = Input.GetAxisRaw("Horizontal");
         if (Mathf.Abs(vertical) < 0.1f && Mathf.Abs(horizontal) < 0.1f)
@@ -37,7 +42,6 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // 2.»ñÈ¡Ïà»úµ±Ç°µÄË®Æ½³¯Ïò
         Transform cam = Camera.main.transform;
 
         Vector3 cameraForward = cam.forward;
@@ -47,29 +51,27 @@ public class PlayerController : MonoBehaviour
         cameraForward.Normalize();
         cameraRight.Normalize();
 
-        // 3.¼ÆËã×îÖÕÒÆ¶¯·½Ïò
         Vector3 moveDir = cameraForward * vertical + cameraRight * horizontal;
 
-        // 4.Á¦Çý¶¯Âß¼­
         rb.AddForce(moveDir * moveForce * Time.fixedDeltaTime);
 
-        // 5.ÇòÌå¹ö¶¯Âß¼­
         transform.Rotate(-moveDir.z * rollSpeed * Time.fixedDeltaTime,
                          0,
                          moveDir.x * rollSpeed * Time.fixedDeltaTime,
                          Space.World);
 
-        // 6.ÏÞËÙÂß¼­
         if (rb.velocity.magnitude > maxSpeed)
         {
             rb.velocity = Vector3.ClampMagnitude(rb.velocity, maxSpeed);
         }
     }
 
-    // Êó±ê¹öÂÖµ÷Ïà»ú¾àÀë
     void Update()
     {
         if (freelookCam == null) return;
+        if (GameStateManager.Instance != null && GameStateManager.Instance.CurrentState != GameState.Playing)
+            return;
+
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         if (Mathf.Abs(scroll) > 0.01f)
         {

@@ -24,10 +24,14 @@ public class PauseMenu : MonoBehaviour
 
         StartCoroutine(FadeCanvas(pauseGroup, 0f, 1f, 0.2f));
 
-        Time.timeScale = 0f;
-
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
+        if (GameStateManager.Instance != null)
+            GameStateManager.Instance.SetState(GameState.Paused);
+        else
+        {
+            Time.timeScale = 0f;
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
     }
 
     public void ResumeGame()
@@ -36,10 +40,14 @@ public class PauseMenu : MonoBehaviour
 
         StartCoroutine(FadeOutAndDisable());
 
-        Time.timeScale = 1f;
-
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        if (GameStateManager.Instance != null)
+            GameStateManager.Instance.SetState(GameState.Playing);
+        else
+        {
+            Time.timeScale = 1f;
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
     }
 
     public void RestartGame()

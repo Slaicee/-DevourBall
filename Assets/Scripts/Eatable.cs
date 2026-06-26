@@ -2,8 +2,8 @@ using UnityEngine;
 
 public class Eatable : MonoBehaviour
 {
-    [Header("吞噬需求")]
-    public float requiredSize = 1f; // 球半径需 > 这个值才能吃 
+    [Header("Eat condition")]
+    public float requiredSize = 1f;
 
     private Bounds bounds;
     private Renderer rend;
@@ -24,32 +24,22 @@ public class Eatable : MonoBehaviour
 
     void Awake()
     {
-        UpdateBounds(); // 立即计算 
+        UpdateBounds();
         AutoDetectType();
     }
 
     void AutoDetectType()
     {
-        switch (gameObject.tag)
-        {
-            case "Human": eatType = EatableType.Human; break;
-            case "Animal": eatType = EatableType.Animal; break;
-            case "Plant": eatType = EatableType.Plant; break;
-            case "Vehicle": eatType = EatableType.Vehicle; break;
-            case "Building": eatType = EatableType.Building; break;
-            case "Street": eatType = EatableType.Street; break;
-            default: eatType = EatableType.Other; break;
-        }
+        eatType = EatableTypeExtensions.TagToType(gameObject.tag);
     }
 
     void LateUpdate()
     {
-        UpdateBounds(); // 运行时动态更新（Scale/动画变化） 
+        UpdateBounds();
     }
 
     void UpdateBounds()
     {
-        // 优先 Renderer.bounds（最准） 
         rend = GetComponentInChildren<Renderer>();
         if (rend != null)
         {
@@ -57,7 +47,6 @@ public class Eatable : MonoBehaviour
             return;
         }
 
-        // 备用 Collider.bounds（无 Renderer 的物体） 
         coll = GetComponentInChildren<Collider>();
         if (coll != null)
         {
@@ -65,7 +54,6 @@ public class Eatable : MonoBehaviour
             return;
         }
 
-        // 终极备用：Transform 计算（所有物体通用） 
         bounds = new Bounds(transform.position, Vector3.one * requiredSize * 2f);
     }
 
@@ -76,6 +64,6 @@ public class Eatable : MonoBehaviour
 
     public float GetEffectiveSize()
     {
-        return bounds.size.magnitude; // 包围盒对角线长度 
+        return bounds.size.magnitude;
     }
 }

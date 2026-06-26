@@ -4,7 +4,7 @@ public class EffectManager : MonoBehaviour
 {
     public static EffectManager Instance;
 
-    [Header("特效预制体（按Tag对应拖入）")]
+    [Header("One-shot FX (by tag)")]
     public GameObject humanFX;
     public GameObject animalFX;
     public GameObject plantFX;
@@ -12,7 +12,7 @@ public class EffectManager : MonoBehaviour
     public GameObject buildingFX;
     public GameObject streetFX;
 
-    [Header("外观特效（挂在玩家身上）")]
+    [Header("Persistent FX (on player)")]
     public GameObject fxHuman;
     public GameObject fxAnimal;
     public GameObject fxPlant;
@@ -28,80 +28,85 @@ public class EffectManager : MonoBehaviour
     {
         Instance = this;
     }
+
     void Update()
     {
         if (effectCooldownTimer > 0)
             effectCooldownTimer -= Time.deltaTime;
     }
 
-    // 播放吞噬球外观特效
     public void PlayPersistentEffect(string tag, Transform playerEffectHolder)
     {
-        // 如果冷却中，不允许替换特效
+        PlayPersistentEffect(EatableTypeExtensions.TagToType(tag), playerEffectHolder);
+    }
+
+    public void PlayPersistentEffect(Eatable.EatableType type, Transform playerEffectHolder)
+    {
         if (effectCooldownTimer > 0) return;
 
-        // 清理旧特效
         if (currentPersistentFX != null) Destroy(currentPersistentFX);
 
-        GameObject prefab = GetFXByTag(tag);
+        GameObject prefab = GetFXByType(type);
         if (prefab == null) return;
 
-        // 实例化并挂在玩家的EffectHolder下
         currentPersistentFX = Instantiate(prefab, playerEffectHolder);
         currentPersistentFX.transform.localPosition = Vector3.zero;
 
-        // 开始冷却计时
         effectCooldownTimer = persistentDuration;
-
-        // 自动销毁特效
         Destroy(currentPersistentFX, persistentDuration);
-    }
-
-    GameObject GetFXByTag(string tag)
-    {
-        return tag switch
-        {
-            "Human" => fxHuman,
-            "Animal" => fxAnimal,
-            "Plant" => fxPlant,
-            "Vehicle" => fxVehicle,
-            "Building" => fxBuilding,
-            "Street" => fxStreet,
-            _ => null,
-        };
     }
 
     public void PlayEffect(string tag, Eatable eatable)
     {
-        GameObject prefab = GetEffectByTag(tag);
+        Bounds b = eatable.GetBounds();
+        PlayEffect(EatableTypeExtensions.TagToType(tag), b.center, b);
+    }
+
+    public void PlayEffect(string tag, Vector3 position, Bounds bounds)
+    {
+        PlayEffect(EatableTypeExtensions.TagToType(tag), position, bounds);
+    }
+
+    private void PlayEffect(Eatable.EatableType type, Vector3 position, Bounds bounds)
+    {
+        GameObject prefab = GetEffectByType(type);
         if (prefab == null) return;
 
-        Bounds b = eatable.GetBounds();
-
-        // 高度 = 模型真实包围盒高度的一半 + 偏移
-        float offsetY = b.extents.y + 0.2f;
-
-        Vector3 spawnPos = b.center + Vector3.up * offsetY;
+        float offsetY = bounds.extents.y + 0.2f;
+        Vector3 spawnPos = bounds.center + Vector3.up * offsetY;
         GameObject fx = Instantiate(prefab, spawnPos, Quaternion.identity);
 
-        // 缩放 = 包围盒对角线 * 系数
-        float scaleFactor = Mathf.Clamp(b.size.magnitude * 0.2f, 0.3f, 3f);
+        float scaleFactor = Mathf.Clamp(bounds.size.magnitude * 0.2f, 0.3f, 3f);
         fx.transform.localScale = Vector3.one * scaleFactor;
 
         Destroy(fx, 2f);
     }
 
-    GameObject GetEffectByTag(string tag)
+    private GameObject GetFXByType(Eatable.EatableType type)
     {
-        switch (tag)
+        return type switch
         {
-            case "Human": return humanFX;
-            case "Animal": return animalFX;
-            case "Plant": return plantFX;
-            case "Vehicle": return vehicleFX;
-            case "Building": return buildingFX;
-            case "Street": return streetFX;
-        }
-        return null;
+            Eatable.EatableType.Human => fxHuman,
+            Eatable.EatableType.Animal => fxAnimal,
+            Eatable.EatableType.Plant => fxPlant,
+            Eatable.EatableType.Vehicle => fxVehicle,
+            Eatable.EatableType.Building => fxBuilding,
+            Eatable.EatableType.Street => fxStreet,
+            _ => null,
+        };
+    }
+
+    private GameObject GetEffectByType(Eatable.EatableType type)
+    {
+        return type switch
+        {
+            Eatable.EatableType.Human => humanFX,
+            Eatable.EatableType.Animal => animalFX,
+            Eatable.EatableType.Plant => plantFX,
+            Eatable.EatableType.Vehicle => vehicleFX,
+            Eatable.EatableType.Building => buildingFX,
+            Eatable.EatableType.Street => streetFX,
+            _ => null,
+        };
     }
 }
