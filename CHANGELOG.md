@@ -1,17 +1,17 @@
-# DevourBall v0.2 — Refactor & Slime Visual
+# DevourBall v0.2 — 重构与史莱姆外观
 
-## Overview
+## 概述
 
-Major refactoring of the original monolithic codebase into a modular, event-driven architecture with a full save/load system and a custom slime visual replacing the original ball.
+对原始单一脚本架构进行重大重构，采用模块化的事件驱动架构，新增完整的存档/读档系统，并用自定义史莱姆外观替换原始球体。
 
 ---
 
-## Architecture
+## 架构
 
-### Event System (`Core/EventBus.cs`)
-Static event bus replacing direct cross-script calls. Five event channels:
+### 事件系统 (`Core/EventBus.cs`)
+静态事件总线，替代跨脚本直接调用。共五个事件通道：
 
-| Event | Publisher | Subscribers |
+| 事件 | 发布者 | 订阅者 |
 |---|---|---|
 | `OnEat(GameObject, EatableType, Vector3, Bounds)` | EatingSystem | EffectManager, SoundManager, SaveManager |
 | `OnPlayerSizeChanged(float size, float radius)` | GrowthSystem | CountdownUI, SaveManager |
@@ -20,15 +20,15 @@ Static event bus replacing direct cross-script calls. Five event channels:
 | `OnScoreChanged(int score)` | GameOverUI | SaveManager |
 
 ```csharp
-// Publish
+// 发布事件
 EventBus.PublishEat(eatenObject, type, position, bounds);
 
-// Subscribe
+// 订阅事件
 EventBus.OnEat += HandleEat;
 ```
 
-### Game State Machine (`Core/GameStateManager.cs`)
-Singleton managing four states with validated transitions:
+### 游戏状态机 (`Core/GameStateManager.cs`)
+单例，管理四种游戏状态及其合法转换：
 
 ```
 OpeningCutscene ──→ Playing ──→ GameOver
@@ -36,39 +36,39 @@ OpeningCutscene ──→ Playing ──→ GameOver
                    Paused
 ```
 
-- Applies `Time.timeScale` and cursor lock per state
-- Invalid transitions logged and ignored
+- 根据状态设置 `Time.timeScale` 和鼠标锁定
+- 非法状态转换会被记录并忽略
 
-### Save System (`Core/SaveManager.cs`, `Core/SaveData.cs`)
+### 存档系统 (`Core/SaveManager.cs`, `Core/SaveData.cs`)
 
-| Key | Function |
+| 按键 | 功能 |
 |---|---|
-| **F5** | Save current game state (player pos/size, remaining eatables, countdown, water level) |
-| **F9** | Load saved game state |
-| **Auto-load** | On game start, if `devour_save.json` exists, restores state after 1 frame |
+| **F5** | 保存当前游戏状态（玩家位置/大小、剩余可吞噬物体、倒计时、水面高度） |
+| **F9** | 读取已保存的游戏状态 |
+| **自动读档** | 游戏启动时，若存在 `devour_save.json`，延迟1帧后自动恢复状态 |
 
-Saved data fields:
-- `playerPosX/Y/Z`, `playerSize`, `playerRadius`
-- `remainingTime`, `waterLevelY`
-- `remainingEatableIds` (hierarchy path for stable object identification)
-- `highScore`, `totalObjectsEaten`, `totalPlayTime` (persistent stats)
+存档数据字段：
+- `playerPosX/Y/Z`、`playerSize`、`playerRadius`
+- `remainingTime`、`waterLevelY`
+- `remainingEatableIds`（基于层级路径的稳定对象标识）
+- `highScore`、`totalObjectsEaten`、`totalPlayTime`（持久化统计）
 
-Game Over auto-deletes the save file. Opening cutscene is skipped when a save exists.
+游戏结束时自动删除存档文件。存在存档时跳过开场动画。
 
-### Player Scripts Split
+### Player 脚本拆分
 
-**Before:** `PlayerEater` (God class — 200+ lines, managed everything)
+**重构前：** `PlayerEater`（上帝类 — 200+ 行，管理所有逻辑）
 
-**After:**
+**重构后：**
 
-| Script | Responsibility |
+| 脚本 | 职责 |
 |---|---|
-| `PlayerEater.cs` | Coordinator: wires GrowthSystem + EatingSystem, subscribes to OnEat for effects/sounds, auto-adds SlimePlayerBridge |
-| `Player/GrowthSystem.cs` | Size, Radius, localScale, Y position, camera height scaling. Publishes `OnPlayerSizeChanged` |
-| `Player/EatingSystem.cs` | `[RequireComponent(GrowthSystem)]`. Iterates `EatableManager.All` in Update, checks distance vs `GrowthSystem.Radius`, triggers Grow() |
+| `PlayerEater.cs` | 协调器：连接 GrowthSystem 和 EatingSystem，订阅 OnEat 事件处理特效和音效，自动添加 SlimePlayerBridge |
+| `Player/GrowthSystem.cs` | 管理 Size、Radius、localScale、Y 坐标、相机高度缩放。发布 `OnPlayerSizeChanged` 事件 |
+| `Player/EatingSystem.cs` | `[RequireComponent(GrowthSystem)]`。在 Update 中遍历 `EatableManager.All`，检测距离与 `GrowthSystem.Radius`，触发 Grow() |
 
-### Tag/Type Mapping (`EatableTypeExtensions.cs`)
-Single source of truth for tag↔EatableType conversion:
+### 标签/类型映射 (`EatableTypeExtensions.cs`)
+tag ↔ EatableType 转换的唯一数据源：
 ```csharp
 EatableType type = EatableTypeExtensions.TagToType("Human");
 string tag = EatableTypeExtensions.ToTag(EatableType.Human);
@@ -76,73 +76,73 @@ string tag = EatableTypeExtensions.ToTag(EatableType.Human);
 
 ---
 
-## Slime Visual (`SlimePlayerBridge.cs`)
+## 史莱姆外观 (`SlimePlayerBridge.cs`)
 
-Replaces the original ball sphere with a custom slime-shaped mesh.
+用自定义史莱姆形状的网格替换原始球体。
 
-### Features
-- **Custom mesh**: Lathe-generated oblate spheroid profile — wide skirt at base, rounded dome top, Y-axis symmetric
-- **Material**: URP/Lit with emission for vibrant green slime look regardless of scene lighting
-- **Growth linkage**: Scales by `GrowthSystem.Radius` — visual matches eatable detection range exactly
-- **Bounce animation**: Sinusoidal scale oscillation (+5%) for a jiggly feel
-- **Always upright**: Visual child GameObject counteracts Rigidbody rotation
-- **Auto-cleanup**: Destroys any previous PBF simulation children on start
-- **Editor auto-fill**: If `slimeMaterial` is unassigned, searches `Assets/Slime/` at startup
+### 特性
+- **自定义网格**：旋转体生成的扁椭球轮廓 — 底部宽大，顶部圆润，Y 轴对称
+- **材质**：URP/Lit + 自发光，确保在任何场景光照下呈现鲜艳绿色
+- **成长联动**：按 `GrowthSystem.Radius` 缩放 — 外观与实际吞噬范围精确匹配
+- **弹跳动画**：正弦波动缩放（±5%），营造果冻般弹性质感
+- **始终保持竖直**：子物体抵消 Rigidbody 旋转
+- **自动清理**：启动时销毁之前可能存在的 PBF 模拟子物体
+- **编辑器自动加载**：若 `slimeMaterial` 未指定，启动时自动搜索 `Assets/Slime/` 目录
 
-### Mesh Profile
+### 网格轮廓曲线
 ```
-Bottom (y=-1.0):  r=0.80  — flat base
-      y=-0.75:   r=0.93  — bulge
-      y=-0.40:   r=1.00  — max width (skirt)
-      y= 0.00:   r=0.85  — equator
-      y= 0.30:   r=0.60  — mid dome
-      y= 0.60:   r=0.42  — upper dome
-      y= 1.00:   r=0.30  — rounded crown
+底部 (y=-1.0):  r=0.80  — 平坦底部
+     y=-0.75:   r=0.93  — 向外鼓起
+     y=-0.40:   r=1.00  — 最大宽度（裙边）
+     y= 0.00:   r=0.85  — 赤道
+     y= 0.30:   r=0.60  — 中穹顶
+     y= 0.60:   r=0.42  — 上穹顶
+     y= 1.00:   r=0.30  — 圆润顶部
 ```
 
 ---
 
-## Modified Scripts Summary
+## 修改的脚本汇总
 
-| File | Changes |
+| 文件 | 改动内容 |
 |---|---|
-| `PlayerController.cs` | State guard: `FixedUpdate`/`Update` blocked when not Playing. Cursor lock fallback |
-| `CountdownUI.cs` | Uses `OnCountdownEnded` event. Exposes `GetRemainingTime()`/`SetRemainingTime()` |
-| `GameOverUI.cs` | Subscribes to `OnGameStateChanged`. Reads `GrowthSystem.Size` for score |
-| `OpeningCutscene.cs` | `ForceSkip()` for save load. Save detection in `Start()` skips cutscene entirely |
-| `PauseMenu.cs` | Uses `GameStateManager.SetState(Paused/Playing)` |
-| `AirWall.cs` | `IsPlaying()` guard. Fixed static bool → instance field |
-| `CitySink.cs` | `GameStateManager` for GameOver trigger. Exposes `WaterLevelY` property |
-| `EffectManager.cs` | `EatableType` overloads. Fixed bounds→Vector3 bug |
-| `SoundManager.cs` | `PlayEatSound(EatableType)` overload |
-| `Eatable.cs` | `AutoDetectType()` delegates to `EatableTypeExtensions.TagToType()` |
+| `PlayerController.cs` | 状态守卫：`FixedUpdate`/`Update` 在非 Playing 状态下拦截。鼠标锁定回退逻辑 |
+| `CountdownUI.cs` | 使用 `OnCountdownEnded` 事件。暴露 `GetRemainingTime()`/`SetRemainingTime()` |
+| `GameOverUI.cs` | 订阅 `OnGameStateChanged`。读取 `GrowthSystem.Size` 作为分数 |
+| `OpeningCutscene.cs` | 新增 `ForceSkip()` 供读档使用。`Start()` 中检测存档直接跳过动画 |
+| `PauseMenu.cs` | 使用 `GameStateManager.SetState(Paused/Playing)` |
+| `AirWall.cs` | `IsPlaying()` 守卫。修复 static bool → 实例字段 |
+| `CitySink.cs` | 使用 `GameStateManager` 触发 GameOver。暴露 `WaterLevelY` 属性 |
+| `EffectManager.cs` | 新增 `EatableType` 重载。修复 bounds→Vector3 错误 |
+| `SoundManager.cs` | 新增 `PlayEatSound(EatableType)` 重载 |
+| `Eatable.cs` | `AutoDetectType()` 委托给 `EatableTypeExtensions.TagToType()` |
 
 ---
 
-## Dependencies (Slime Folder)
+## Slime 文件夹依赖
 
-The `Assets/Slime/` folder contains the original PBF fluid simulation source files as reference (not used at runtime by the simplified slime visual):
+`Assets/Slime/` 文件夹包含原始 PBF 流体模拟源码作为参考（当前简化的史莱姆外观方案不使用）：
 
-| File | Purpose |
+| 文件 | 用途 |
 |---|---|
-| `Slime_PBF.cs` | PBF simulation + Marching Cubes + rendering |
-| `Jobs_Simulation_PBF.cs` | Burst-compiled SPH kernels, density, position correction |
-| `Jobs_Reconstruction.cs` | Surface reconstruction, density grid, anisotropic smoothing |
-| `LMarchingCubes.cs` | Marching Cubes mesh generation |
-| `Jobs_Effects.cs` | Connected component analysis, bubble particle system |
-| `Eigen.cs` | Eigenvalue decomposition for anisotropic filtering |
-| `Slime.mat` / `Bubbles.mat` / `Particle.mat` / `face.mat` | Materials |
-| `face.obj` / `eyes.png` | Face model and texture |
+| `Slime_PBF.cs` | PBF 模拟 + Marching Cubes + 渲染 |
+| `Jobs_Simulation_PBF.cs` | Burst 编译的 SPH 核函数、密度、位置修正 |
+| `Jobs_Reconstruction.cs` | 表面重建、密度网格、各向异性平滑 |
+| `LMarchingCubes.cs` | Marching Cubes 网格生成 |
+| `Jobs_Effects.cs` | 连通分量分析、气泡粒子系统 |
+| `Eigen.cs` | 各向异性滤波的特征值分解 |
+| `Slime.mat` / `Bubbles.mat` / `Particle.mat` / `face.mat` | 材质 |
+| `face.obj` / `eyes.png` | 面部模型和贴图 |
 
-`ProjectSettings/ProjectSettings.asset`: `allowUnsafeCode: 1` (required by `LMarchingCubes.cs`)
+`ProjectSettings/ProjectSettings.asset`：`allowUnsafeCode: 1`（`LMarchingCubes.cs` 需要）
 
 ---
 
-## Scene Setup
+## 场景配置
 
-Two manually-added singleton GameObjects required (not in scene by default):
+需要手动在场景中添加两个单例 GameObject（场景默认不存在）：
 
-1. **GameStateManager** — `GameStateManager` component
-2. **SaveManager** — `SaveManager` component
+1. **GameStateManager** — 挂载 `GameStateManager` 组件
+2. **SaveManager** — 挂载 `SaveManager` 组件
 
-Both have `DontDestroyOnLoad` in `Awake()`.
+两者均在 `Awake()` 中设置 `DontDestroyOnLoad`。
